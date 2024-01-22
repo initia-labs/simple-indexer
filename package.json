@@ -1,0 +1,85 @@
+{
+  "name": "@initia/simple-indexer",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/initia-labs/simple-indexer.git"
+  },
+  "main": "src/main.ts",
+  "scripts": {
+    "create-hook": "husky add .husky/pre-commit",
+    "dev": "ts-node-dev --respawn -r tsconfig-paths/register src/main.ts",
+    "start": "NODE_ENV=production ts-node -r tsconfig-paths/register src/main.ts",
+    "prepare": "husky install",
+    "format": "prettier --check \"./src/**/*.ts\"",
+    "format:fix": "prettier --write \"./src/**/*.ts\"",
+    "lint": "eslint src --ext .js,.ts",
+    "lint:fix": "eslint src --ext .js,.ts --fix"
+  },
+  "dependencies": {
+    "@initia/initia.js": "^0.1.27",
+    "@koa/cors": "^4.0.0",
+    "@sentry/node": "^6.19.7",
+    "bluebird": "^3.7.2",
+    "chalk": "^2.4.2",
+    "dotenv": "^16.3.1",
+    "koa": "^2.15.0",
+    "koa-body": "^4.2.0",
+    "koa-helmet": "^7.0.2",
+    "koa-joi-controllers": "^1.2.3",
+    "koa-morgan": "^1.0.1",
+    "koa-mount": "^4.0.0",
+    "koa-router": "^12.0.1",
+    "koa-static": "^5.0.0",
+    "koa-swagger-decorator": "^2.2.1",
+    "lodash": "^4.17.21",
+    "merkletreejs": "^0.3.11",
+    "moment": "^2.30.1",
+    "pg": "^8.11.3",
+    "sha3": "^2.1.4",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typeorm": "^0.3.17",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^4.7.1"
+  },
+  "devDependencies": {
+    "@types/bluebird": "^3.5.42",
+    "@types/jest": "^29.5.11",
+    "@types/joi": "^17.2.3",
+    "@types/koa__cors": "^4.0.3",
+    "@types/koa-router": "^7.4.8",
+    "@types/lodash": "^4.14.202",
+    "@types/pg": "^8.10.9",
+    "@types/ws": "^8.5.10",
+    "@typescript-eslint/eslint-plugin": "^6.17.0",
+    "eslint": "^8.56.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.3.0",
+    "prettier": "^3.1.1",
+    "ts-jest": "^29.1.1",
+    "ts-node-dev": "^2.0.0"
+  },
+  "lint-staged": {
+    "./src/**/*.ts": [
+      "npm run lint:fix",
+      "npm run format:fix"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "post-checkout": "npm i"
+    }
+  },
+  "prettier": {
+    "singleQuote": true,
+    "semi": false,
+    "trailingComma": "es5"
+  },
+  "overrides": {
+    "koa-joi-controllers": {
+      "is-gen-fn": "0.0.2"
+    }
+  }
+}

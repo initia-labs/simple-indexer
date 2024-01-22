@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Logs
+logs
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# TypeScript output
+dist/
+
+# ormconfig
+ormconfig.json
+
+.env
+build
+temp*

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "es2021",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "module": "node16",
+    "allowJs": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "moduleResolution": "node16",
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "sourceMap": true,
+    "baseUrl": "src",
+    "sourceRoot": "src",
+    "outDir": "dist",
+    "typeRoots": ["src/types", "node_modules/@types"],
+    "paths": {
+      "graphql": ["node_modules/graphql"],
+      "*": ["*"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}
