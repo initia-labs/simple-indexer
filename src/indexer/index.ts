@@ -8,8 +8,8 @@ let collector: Collector[] = []
 export async function runBot(): Promise<void> {
   collector = [
     new Collector(
-      new RPCSocket(config.L1_RPC_URL, 10_000),
-      new RPCClient(config.L1_RPC_URL)
+      new RPCSocket(config.RPC_URL, 10_000),
+      new RPCClient(config.RPC_URL)
     ),
   ]
   try {

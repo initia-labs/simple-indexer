@@ -17,5 +17,5 @@ npm run start
 | Name                    | Description                                    | Default                               |
 |-------------------------|------------------------------------------------|---------------------------------------|
 | SERVER_PORT             | Server port                                    | 6000                                  |
-| L1_LCD_URL              | LCD URL                                        | 'http://localhost:1317'               |
-| L1_RPC_URL              | RPC URL                                        | 'http://localhost:26657'              |
+| LCD_URL                 | LCD URL                                        | 'http://localhost:1317'               |
+| RPC_URL                 | RPC URL                                        | 'http://localhost:26657'              |

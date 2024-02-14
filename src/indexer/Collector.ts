@@ -19,7 +19,7 @@ export class Collector extends Monitor {
   }
 
   async collectBlock(manager: EntityManager): Promise<void> {
-    const block = await config.l1lcd.tendermint.blockInfo(this.currentHeight)
+    const block = await config.lcd.tendermint.blockInfo(this.currentHeight)
 
     const blockEntity: BlockEntity = {
       chain_id: block.block.header.chain_id,
@@ -43,7 +43,7 @@ export class Collector extends Monitor {
   }
 
   async collectTx(manager: EntityManager): Promise<void> {
-    const txSearchRes = await config.l1lcd.tx.search({
+    const txSearchRes = await config.lcd.tx.search({
       query: [{ key: 'tx.height', value: this.currentHeight.toString() }],
     })
     for (const txInfo of txSearchRes.txs) {
@@ -70,7 +70,7 @@ export class Collector extends Monitor {
     eventType: string
   ): Promise<boolean> {
     const [isEmpty, events] = await this.helper.fetchEvents(
-      config.l1lcd,
+      config.lcd,
       this.currentHeight,
       eventType
     )

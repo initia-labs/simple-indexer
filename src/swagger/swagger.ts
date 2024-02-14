@@ -3,7 +3,7 @@ import { SwaggerRouter } from 'koa-swagger-decorator'
 const router = new SwaggerRouter({
   spec: {
     info: {
-      title: 'Initia VIP API',
+      title: 'Initia API',
       version: 'v1.0',
     },
   },
