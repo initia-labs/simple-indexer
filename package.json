@@ -17,14 +17,13 @@
     "lint:fix": "eslint src --ext .js,.ts --fix"
   },
   "dependencies": {
-    "@initia/initia.js": "^0.1.27",
-    "@koa/cors": "^4.0.0",
+    "@initia/initia.js": "^0.1.30",
+    "@koa/cors": "^5.0.0",
     "@sentry/node": "^6.19.7",
     "bluebird": "^3.7.2",
-    "chalk": "^2.4.2",
     "dotenv": "^16.3.1",
     "koa": "^2.15.0",
-    "koa-body": "^4.2.0",
+    "koa-body": "^5.0.0",
     "koa-helmet": "^7.0.2",
     "koa-joi-controllers": "^1.2.3",
     "koa-morgan": "^1.0.1",
@@ -33,15 +32,10 @@
     "koa-static": "^5.0.0",
     "koa-swagger-decorator": "^2.2.1",
     "lodash": "^4.17.21",
-    "merkletreejs": "^0.3.11",
-    "moment": "^2.30.1",
     "pg": "^8.11.3",
-    "sha3": "^2.1.4",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typeorm": "^0.3.17",
-    "winston": "^3.11.0",
-    "winston-daily-rotate-file": "^4.7.1"
+    "typeorm": "^0.3.19"
   },
   "devDependencies": {
     "@types/bluebird": "^3.5.42",
