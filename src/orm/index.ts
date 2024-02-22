@@ -11,16 +11,18 @@ import { TxEntity } from './TxEntity'
 import { StateEntity } from './StateEntity'
 import { BlockEntity } from './BlockEntity'
 import { EventEntity } from './EventEntity'
+import { LunchTaskEntity } from './LunchTaskEntity'
 
 export * from './TxEntity'
 export * from './StateEntity'
 export * from './BlockEntity'
 export * from './EventEntity'
+export * from './LunchTaskEntity'
 
 export const staticOptions = {
   supportBigNumbers: true,
   bigNumberStrings: true,
-  entities: [TxEntity, StateEntity, BlockEntity, EventEntity],
+  entities: [TxEntity, StateEntity, BlockEntity, EventEntity, LunchTaskEntity],
 }
 
 let DB: DataSource[] = []

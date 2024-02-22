@@ -1,9 +1,10 @@
 import { Monitor } from './Monitor'
-import { BlockEntity, TxEntity, getDB } from 'orm'
+import { BlockEntity, LunchTaskEntity, TxEntity, getDB } from 'orm'
 import { EntityManager } from 'typeorm'
 import { RPCClient, RPCSocket } from 'lib/rpc'
 import { config } from 'config'
 import { EventEntity } from 'orm/EventEntity'
+import { MsgExecute } from '@initia/initia.js'
 
 export class Collector extends Monitor {
   constructor(
@@ -88,6 +89,85 @@ export class Collector extends Monitor {
 
     await manager.getRepository(TxEntity).save(txEntities)
     await manager.getRepository(EventEntity).save(eventEntities)
+
+    // lunch
+    await this.collectLunchTasks(manager, eventEntities)
+  }
+
+  async collectLunchTasks(
+    manager: EntityManager,
+    events: EventEntity[]
+  ): Promise<void> {
+    const taskMap: {
+      [taskName: string]: { [account: string]: LunchTaskEntity }
+    } = {} // task_name -> account -> task
+    taskMap['faucet'] = {}
+    taskMap['swap'] = {}
+    taskMap['stake'] = {}
+
+    for (const event of events) {
+      if (!('msg_index' in event.attributes)) continue
+      const msgIdx = parseInt(event.attributes['msg_index'])
+
+      switch (event.type_tag) {
+        // faucet
+        case 'transfer': {
+          const sender = event.attributes['sender']
+          const recipient = event.attributes['recipient']
+          const amount = event.attributes['amount']
+          if (
+            sender === 'init1hk0asaef9nxvnj7gjwawv0zz0yd7adcysktpqu' &&
+            amount === '100000000uinit'
+          ) {
+            const task: LunchTaskEntity = {
+              account: recipient,
+              task_name: 'faucet',
+              task_tx_hash: event.txhash,
+              timestamp: event.tx.timestamp,
+            }
+            taskMap[task.task_name][task.account] = task
+          }
+          break
+        }
+        // swap
+        case 'move': {
+          const moveTypeTag = event.attributes['type_tag']
+          if (moveTypeTag === '0x1::dex::SwapEvent') {
+            const msg = event.tx.tx.body.messages[msgIdx] as MsgExecute
+            const task: LunchTaskEntity = {
+              account: msg.sender,
+              task_name: 'swap',
+              task_tx_hash: event.txhash,
+              timestamp: event.tx.timestamp,
+            }
+            taskMap[task.task_name][task.account] = task
+          }
+          break
+        }
+        // stake
+        case 'delegate': {
+          const amount = event.attributes['amount']
+          if (amount.endsWith('uinit')) {
+            const task: LunchTaskEntity = {
+              account: event.attributes['delegator'],
+              task_name: 'stake',
+              task_tx_hash: event.txhash,
+              timestamp: event.tx.timestamp,
+            }
+            taskMap[task.task_name][task.account] = task
+          }
+          break
+        }
+        default: {
+          break
+        }
+      }
+    }
+
+    const tasks: LunchTaskEntity[] = Object.values(taskMap).flatMap((tm) =>
+      Object.values(tm)
+    )
+    await manager.getRepository(LunchTaskEntity).save(tasks)
   }
 
   public async handleBlock(manager: EntityManager): Promise<void> {
