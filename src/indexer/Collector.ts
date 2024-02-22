@@ -18,15 +18,20 @@ export class Collector extends Monitor {
     return 'indexer'
   }
 
-  async collectBlock(manager: EntityManager): Promise<void> {
-    const block = await config.lcd.tendermint.blockInfo(this.currentHeight)
+  async collect(manager: EntityManager): Promise<void> {
+    const [block, txSearchRes] = await Promise.all([
+      config.lcd.tendermint.blockInfo(this.currentHeight),
+      config.lcd.tx.search({
+        query: [{ key: 'tx.height', value: this.currentHeight.toString() }],
+      }),
+    ])
 
     const blockEntity: BlockEntity = {
       chain_id: block.block.header.chain_id,
-      height: block.block.header.height,
+      height: parseInt(block.block.header.height),
       version: block.block.header.version,
       hash: block.block_id.hash,
-      time: block.block.header.time,
+      time: new Date(block.block.header.time),
       last_block_id: block.block.header.last_block_id,
       last_commit_hash: block.block.header.last_commit_hash,
       data_hash: block.block.header.data_hash,
@@ -39,63 +44,53 @@ export class Collector extends Monitor {
       proposer_address: block.block.header.proposer_address,
     }
 
-    await this.helper.saveEntity(manager, BlockEntity, blockEntity)
-  }
+    await manager.getRepository(BlockEntity).save(blockEntity)
 
-  async collectTx(manager: EntityManager): Promise<void> {
-    const txSearchRes = await config.lcd.tx.search({
-      query: [{ key: 'tx.height', value: this.currentHeight.toString() }],
-    })
+    let txEntities: TxEntity[] = []
+    let eventEntities: EventEntity[] = []
+
     for (const txInfo of txSearchRes.txs) {
+      if (txInfo.code !== 0) continue
+
       const entity: TxEntity = {
         txhash: txInfo.txhash,
         height: txInfo.height,
         raw_log: txInfo.raw_log,
-        logs: txInfo?.logs ?? null,
         gas_wanted: txInfo.gas_wanted,
         gas_used: txInfo.gas_used,
         tx: txInfo.tx,
-        timestamp: txInfo.timestamp,
-        events: txInfo.events,
-        code: txInfo?.code ?? null,
-        codespace: txInfo?.codespace ?? null,
+        timestamp: new Date(txInfo.timestamp),
+        code: txInfo.code,
+        codespace: txInfo.codespace,
       }
 
-      await this.helper.saveEntity(manager, TxEntity, entity)
-    }
-  }
+      const entities: EventEntity[] = txInfo.events.map((event, index) => {
+        const attributes: { [key: string]: string } = event.attributes.reduce(
+          (obj, attr) => {
+            obj[attr.key] = attr.value
+            return obj
+          },
+          {}
+        )
 
-  async collectEvent(
-    manager: EntityManager,
-    eventType: string
-  ): Promise<boolean> {
-    const [isEmpty, events] = await this.helper.fetchEvents(
-      config.lcd,
-      this.currentHeight,
-      eventType
-    )
-
-    if (isEmpty) return false
-
-    for (const evt of events) {
-      const attrMap = this.helper.eventsToAttrMap(evt)
-      await this.helper.saveEntity(manager, EventEntity, {
-        type_tag: attrMap['type_tag'],
-        data: attrMap['data'],
+        return {
+          txhash: txInfo.txhash,
+          index,
+          type_tag: event.type,
+          attributes,
+          tx: entity,
+        }
       })
+
+      txEntities = [...txEntities, entity]
+      eventEntities = [...eventEntities, ...entities]
     }
 
-    return true
+    await manager.getRepository(TxEntity).save(txEntities)
+    await manager.getRepository(EventEntity).save(eventEntities)
   }
 
-  public async handleBlock(manager: EntityManager): Promise<any> {
-    await this.collectBlock(manager)
-    await this.collectTx(manager)
-  }
-
-  public async handleEvents(manager: EntityManager): Promise<any> {
-    // set eventType that you want to collect
-    const isMoveEventExist = await this.collectEvent(manager, 'move')
-    return isMoveEventExist
+  public async handleBlock(manager: EntityManager): Promise<void> {
+    await this.collect(manager)
   }
 }

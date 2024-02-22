@@ -3,18 +3,19 @@ import { Collector } from './Collector'
 import { RPCClient, RPCSocket } from 'lib/rpc'
 import { config } from 'config'
 
-let collector: Collector[] = []
+let collectors: Collector[] = []
 
 export async function runBot(): Promise<void> {
-  collector = [
+  collectors = [
     new Collector(
       new RPCSocket(config.RPC_URL, 10_000),
       new RPCClient(config.RPC_URL)
     ),
   ]
+
   try {
     await Promise.all(
-      collector.map((bot) => {
+      collectors.map((bot) => {
         bot.run()
       })
     )
@@ -25,8 +26,7 @@ export async function runBot(): Promise<void> {
 }
 
 export async function stopCollectors(): Promise<void> {
-  collector.forEach((bot) => bot.stop())
-
+  collectors.forEach((bot) => bot.stop())
   console.log('Closing DB connection')
   await finalizeORM()
 }

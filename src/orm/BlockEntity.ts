@@ -6,8 +6,8 @@ export class BlockEntity {
   @PrimaryColumn()
   chain_id: string
 
-  @PrimaryColumn()
-  height: string
+  @PrimaryColumn({ type: 'bigint' })
+  height: number
 
   @Column({ type: 'jsonb' })
   version: Version
@@ -16,9 +16,9 @@ export class BlockEntity {
   @Index('block_hash')
   hash: string
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   @Index('block_time')
-  time: string
+  time: Date
 
   @Column({ type: 'jsonb' })
   last_block_id: BlockID

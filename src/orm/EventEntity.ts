@@ -1,14 +1,21 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
+import { Column, Entity, Index, PrimaryColumn, ManyToOne } from 'typeorm'
+import { TxEntity } from './TxEntity'
 
 @Entity('event')
 export class EventEntity {
-  @PrimaryGeneratedColumn()
-  id?: number
+  @PrimaryColumn()
+  txhash: string
+
+  @PrimaryColumn('int')
+  index: number
 
   @Column('text')
   @Index('event_type_tag')
   type_tag: string
 
-  @Column('text')
-  data: string
+  @Column({ type: 'jsonb' })
+  attributes: { [key: string]: string }
+
+  @ManyToOne(() => TxEntity)
+  tx: TxEntity
 }

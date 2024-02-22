@@ -1,4 +1,4 @@
-import { Event, Tx, TxLog } from '@initia/initia.js'
+import { Tx } from '@initia/initia.js'
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm'
 
 @Entity('tx')
@@ -13,27 +13,21 @@ export class TxEntity {
   @Column()
   raw_log: string
 
-  @Column({ type: 'simple-json', nullable: true })
-  logs: TxLog[] | null
-
   @Column()
   gas_wanted: number
 
   @Column()
   gas_used: number
 
-  @Column({ type: 'simple-json' })
+  @Column({ type: 'jsonb' })
   tx: Tx
 
-  @Column()
-  timestamp: string
-
-  @Column({ type: 'simple-json' })
-  events: Event[]
+  @Column({ type: 'timestamptz' })
+  timestamp: Date
 
   @Column({ type: 'int', nullable: true })
-  code: number | null
+  code?: number
 
   @Column({ type: 'text', nullable: true })
-  codespace: string | null
+  codespace?: string
 }

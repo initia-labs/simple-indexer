@@ -2,19 +2,15 @@ import Bluebird from 'bluebird'
 import { RPCClient, RPCSocket } from 'lib/rpc'
 import { StateEntity } from 'orm'
 import { DataSource, EntityManager } from 'typeorm'
-import { INTERVAL_MONITOR } from 'config'
-import MonitorHelper from './MonitorHelper'
+import { config } from 'config'
 
 const MAX_BLOCKS = 20 // DO NOT CHANGE THIS, hard limit is 20 in cometbft.
-const MAX_RETRY_INTERVAL = 30_000
 
 export abstract class Monitor {
   public syncedHeight: number
   public currentHeight: number
   protected db: DataSource
   protected isRunning = false
-  protected retryNum = 0
-  helper = new MonitorHelper()
 
   constructor(
     public socket: RPCSocket,
@@ -80,38 +76,19 @@ export abstract class Monitor {
               )
             }
 
-            if (parseInt(metadata.num_txs) === 0) {
-              await this.handleBlockWithStateUpdate(manager)
-              continue
-            }
-
-            // handle event always called when there is a tx in a block,
-            // so empty means, the tx indexing is still on going.
-            const ok: boolean = await this.handleEvents(manager)
-            if (!ok) {
-              this.retryNum++
-              if (this.retryNum * INTERVAL_MONITOR >= MAX_RETRY_INTERVAL) {
-                // rotate when tx index data is not found during 30s after block stored.
-                this.rpcClient.rotateRPC()
-              }
-              break
-            }
-            this.retryNum = 0
+            // if (parseInt(metadata.num_txs) > 0) {
+            //   await this.handleTxs(manager)
+            // }
             await this.handleBlockWithStateUpdate(manager)
           }
         })
       } catch (err) {
-        this.stop()
-        console.log(err)
-        throw new Error(`Error in ${this.name()} ${err}`)
+        console.log(`Error in ${this.name()} ${err}`)
       } finally {
-        await Bluebird.delay(INTERVAL_MONITOR)
+        await Bluebird.delay(config.MONITOR_INTERVAL)
       }
     }
   }
-
-  // eslint-disable-next-line
-  public async handleEvents(manager: EntityManager): Promise<any> {}
 
   // eslint-disable-next-line
   public async handleBlock(manager: EntityManager): Promise<void> {}
