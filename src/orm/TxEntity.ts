@@ -1,4 +1,3 @@
-import { Tx } from '@initia/initia.js'
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm'
 
 @Entity('tx')
@@ -19,15 +18,12 @@ export class TxEntity {
   @Column()
   gas_used: number
 
-  @Column({ type: 'jsonb' })
-  tx: Tx
+  @Column()
+  tx: string // base64 encdoed
 
   @Column({ type: 'timestamptz' })
   timestamp: Date
 
-  @Column({ type: 'int', nullable: true })
-  code?: number
-
-  @Column({ type: 'text', nullable: true })
-  codespace?: string
+  @Column({ type: 'int' })
+  code: number
 }

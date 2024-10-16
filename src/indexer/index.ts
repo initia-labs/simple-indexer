@@ -1,32 +1,22 @@
-import { finalizeORM } from 'orm'
+import { RPCClient } from 'lib/rpcClient'
 import { Collector } from './Collector'
-import { RPCClient, RPCSocket } from 'lib/rpc'
 import { config } from 'config'
+import { EntityManager } from 'typeorm'
+import { saveBlock } from './blockIndexers'
+import { saveTx } from './txIndexers'
+import { saveDepositEvent } from './eventIndexers'
 
-let collectors: Collector[] = []
-
-export async function runBot(): Promise<void> {
-  collectors = [
-    new Collector(
-      new RPCSocket(config.RPC_URL, 10_000),
-      new RPCClient(config.RPC_URL)
-    ),
-  ]
-
-  try {
-    await Promise.all(
-      collectors.map((bot) => {
-        bot.run()
-      })
-    )
-  } catch (err) {
-    console.log(err)
-    stopCollectors()
-  }
-}
-
-export async function stopCollectors(): Promise<void> {
-  collectors.forEach((bot) => bot.stop())
-  console.log('Closing DB connection')
-  await finalizeORM()
+export function runCollector(manager: EntityManager): void {
+  new Collector(
+    new RPCClient(config.rpcUrl),
+    config.startHeight,
+    {
+      latestHeightUpdateInterval: 1000,
+      latestHeightUpdateMaxRetry: 10,
+    },
+    manager,
+    [saveBlock],
+    [saveTx],
+    [saveDepositEvent]
+  )
 }
