@@ -1,11 +1,8 @@
-import { BlockID, Version } from '@initia/initia.js'
+import { Version } from '@cosmjs/tendermint-rpc/build/comet38'
 import { Column, Entity, PrimaryColumn, Index } from 'typeorm'
 
 @Entity('block')
 export class BlockEntity {
-  @PrimaryColumn()
-  chain_id: string
-
   @PrimaryColumn({ type: 'bigint' })
   height: number
 
@@ -20,8 +17,8 @@ export class BlockEntity {
   @Index('block_time')
   time: Date
 
-  @Column({ type: 'jsonb' })
-  last_block_id: BlockID
+  @Column({ type: 'jsonb', nullable: true })
+  last_block_id: { hash: string; parts: { total: number; hash: string } } | null
 
   @Column()
   last_commit_hash: string

@@ -1,20 +1,12 @@
-import { LCDClient } from '@initia/initia.js'
 import dotenv from 'dotenv'
 
 dotenv.config()
 
-const { SERVER_PORT, MONITOR_INTERVAL, LCD_URL, RPC_URL } = process.env
+const { SERVER_PORT, START_HEIGHT, RPC_URL, LOG_LEVEL } = process.env
 
 export const config = {
-  SERVER_PORT: SERVER_PORT ? parseInt(SERVER_PORT) : 3000,
-  MONITOR_INTERVAL: MONITOR_INTERVAL ? parseInt(MONITOR_INTERVAL) : 100,
-  LCD_URL: LCD_URL ? LCD_URL.split(',') : ['http://localhost:1317'],
-  RPC_URL: RPC_URL ? RPC_URL.split(',') : ['http://localhost:26657'],
-  lcd: new LCDClient(
-    LCD_URL ? LCD_URL.split(',')[0] : 'http://localhost:1317',
-    {
-      gasPrices: '0.15uinit',
-      gasAdjustment: '1.75',
-    }
-  ),
+  logLevel: LOG_LEVEL ? LOG_LEVEL : 'info',
+  serverPort: SERVER_PORT ? parseInt(SERVER_PORT) : 3000,
+  rpcUrl: RPC_URL ?? 'http://localhost:26657',
+  startHeight: START_HEIGHT ? parseInt(START_HEIGHT) : 1,
 }

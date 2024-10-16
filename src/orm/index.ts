@@ -10,17 +10,17 @@ const debug = debugModule('orm')
 import { TxEntity } from './TxEntity'
 import { StateEntity } from './StateEntity'
 import { BlockEntity } from './BlockEntity'
-import { EventEntity } from './EventEntity'
+import { DepositEntity } from './DepositEntity'
 
 export * from './TxEntity'
 export * from './StateEntity'
 export * from './BlockEntity'
-export * from './EventEntity'
+export * from './DepositEntity'
 
 export const staticOptions = {
   supportBigNumbers: true,
   bigNumberStrings: true,
-  entities: [TxEntity, StateEntity, BlockEntity, EventEntity],
+  entities: [TxEntity, StateEntity, BlockEntity, DepositEntity],
 }
 
 let DB: DataSource[] = []

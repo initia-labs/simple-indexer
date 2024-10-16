@@ -1,96 +1,175 @@
-import { Monitor } from './Monitor'
-import { BlockEntity, TxEntity, getDB } from 'orm'
+import { BlockResponse, TxData } from '@cosmjs/tendermint-rpc/build/comet38'
+import { delay } from 'bluebird'
+import { EventWithInfo, eventToEventWithInfo, getTxHash } from 'lib'
+import { createLoggerWithPrefix } from 'lib/logger'
+import { RPCClient } from 'lib/rpcClient'
+import { StateEntity } from 'orm'
 import { EntityManager } from 'typeorm'
-import { RPCClient, RPCSocket } from 'lib/rpc'
-import { config } from 'config'
-import { EventEntity } from 'orm/EventEntity'
+import { Logger } from 'winston'
 
-export class Collector extends Monitor {
+export class Collector {
+  private syncedHeight: number
+  private latestHeight: number
+  private logger: Logger
   constructor(
-    public socket: RPCSocket,
-    public rpcClient: RPCClient
+    private rpcClient: RPCClient,
+    private startHeight: number,
+    private config: IndexerConfig,
+    private entityManger: EntityManager,
+    private blockIndexers: BlockIndexer[],
+    private txIndexers: TxIndexer[],
+    private eventIndexers: EventIndexer[]
   ) {
-    super(socket, rpcClient)
-    ;[this.db] = getDB()
+    this.logger = createLoggerWithPrefix('collector')
+    this.latestHeight = -1
+    this.syncedHeight = -1
+    // run latestHeightWorker
+    this.latestHeightWorker()
+
+    // run indexer worker
+    this.indexerWorker()
   }
 
-  public name(): string {
-    return 'indexer'
+  private async latestHeightWorker() {
+    let retired = 0
+    for (;;) {
+      if (retired >= this.config.latestHeightUpdateMaxRetry) {
+        throw Error('[latestHeightWorker] reach max retry')
+      }
+      try {
+        this.latestHeight = await this.rpcClient.queryLatestHeight()
+        retired = 0
+      } catch (e) {
+        retired++
+        this.logger.warning(
+          `[latestHeightWorker] Failed to get latest height due to ${e}. Retry: (${retired}/${this.config.latestHeightUpdateMaxRetry})`
+        )
+      }
+      await delay(this.config.latestHeightUpdateInterval)
+    }
   }
 
-  async collect(manager: EntityManager): Promise<void> {
-    const [block, txSearchRes] = await Promise.all([
-      config.lcd.tendermint.blockInfo(this.currentHeight),
-      config.lcd.tx.search({
-        query: [{ key: 'tx.height', value: this.currentHeight.toString() }],
-      }),
-    ])
-
-    const blockEntity: BlockEntity = {
-      chain_id: block.block.header.chain_id,
-      height: parseInt(block.block.header.height),
-      version: block.block.header.version,
-      hash: block.block_id.hash,
-      time: new Date(block.block.header.time),
-      last_block_id: block.block.header.last_block_id,
-      last_commit_hash: block.block.header.last_commit_hash,
-      data_hash: block.block.header.data_hash,
-      validators_hash: block.block.header.validators_hash,
-      next_validators_hash: block.block.header.next_validators_hash,
-      consensus_hash: block.block.header.consensus_hash,
-      app_hash: block.block.header.app_hash,
-      last_results_hash: block.block.header.last_results_hash,
-      evidence_hash: block.block.header.evidence_hash,
-      proposer_address: block.block.header.proposer_address,
+  private async indexerWorker() {
+    // initialize synced height
+    if (this.syncedHeight === -1) {
+      const state = await this.entityManger
+        .getRepository(StateEntity)
+        .findOne({ where: { name: 'collector' } })
+      if (state === null) {
+        await this.entityManger
+          .getRepository(StateEntity)
+          .insert({ name: 'collector', height: this.startHeight })
+        this.syncedHeight = this.startHeight
+      } else {
+        this.syncedHeight = state.height
+      }
     }
 
-    await manager.getRepository(BlockEntity).save(blockEntity)
+    for (;;) {
+      // heights to fetch
+      const heights = Array.from(
+        { length: 20 },
+        (_, i) => i + this.syncedHeight + 1
+      ).filter((height) => height <= this.latestHeight)
 
-    let txEntities: TxEntity[] = []
-    let eventEntities: EventEntity[] = []
+      // fetch blocks
+      const blocks = await Promise.all(
+        heights.map((height) => this.fetchBlock(height))
+      )
 
-    for (const txInfo of txSearchRes.txs) {
-      if (txInfo.code !== 0) continue
+      this.logger.debug(
+        `Fetched block results for heights (${JSON.stringify(heights)})`
+      )
 
-      const entity: TxEntity = {
-        txhash: txInfo.txhash,
-        height: txInfo.height,
-        raw_log: txInfo.raw_log,
-        gas_wanted: txInfo.gas_wanted,
-        gas_used: txInfo.gas_used,
-        tx: txInfo.tx,
-        timestamp: new Date(txInfo.timestamp),
-        code: txInfo.code,
-        codespace: txInfo.codespace,
+      for (const block of blocks) {
+        const height = block.block.block.header.height
+        await this.entityManger.transaction(async (manager) => {
+          // run block indexers
+          for (const blockIndexer of this.blockIndexers) {
+            await blockIndexer(manager, block.block)
+          }
+
+          // run tx indexers
+          for (const tx of block.txs) {
+            for (const txIndexer of this.txIndexers) {
+              const skip = await txIndexer(manager, block.block, tx)
+              if (skip) continue
+            }
+          }
+
+          // run event indexers
+          for (const event of block.events) {
+            for (const eventIndexer of this.eventIndexers) {
+              const skip = await eventIndexer(manager, block.block, event)
+              if (skip) continue
+            }
+          }
+
+          // update synced height
+          const stateRepo = manager.getRepository(StateEntity)
+          await stateRepo.update({ name: 'collector' }, { height })
+          this.syncedHeight = height
+        })
       }
 
-      const entities: EventEntity[] = txInfo.events.map((event, index) => {
-        const attributes: { [key: string]: string } = event.attributes.reduce(
-          (obj, attr) => {
-            obj[attr.key] = attr.value
-            return obj
-          },
-          {}
-        )
-
-        return {
-          txhash: txInfo.txhash,
-          index,
-          type_tag: event.type,
-          attributes,
-          tx: entity,
-        }
-      })
-
-      txEntities = [...txEntities, entity]
-      eventEntities = [...eventEntities, ...entities]
+      await delay(100)
     }
-
-    await manager.getRepository(TxEntity).save(txEntities)
-    await manager.getRepository(EventEntity).save(eventEntities)
   }
 
-  public async handleBlock(manager: EntityManager): Promise<void> {
-    await this.collect(manager)
+  private async fetchBlock(height: number) {
+    this.logger.debug(`Fecth new block results (height - ${height})`)
+    const blockResults = await this.rpcClient.blockResults(height)
+    const block = await this.rpcClient.block(height)
+    const timestamp = block.block.header.time.toISOString()
+    const txhashes = block.block.txs.map(getTxHash)
+
+    const txs: (TxData & { txhash: string })[] = []
+    const events: EventWithInfo[] = []
+
+    // parse events from begin block
+    blockResults.beginBlockEvents.map((event) => {
+      events.push(eventToEventWithInfo(event, timestamp, '', height))
+    })
+
+    // parse events from txs
+    blockResults.results.map((res, i) => {
+      txs.push({ ...res, txhash: txhashes[i] })
+      res.events.map((event) => {
+        events.push(eventToEventWithInfo(event, timestamp, txhashes[i], height))
+      })
+    })
+
+    // parse events from end block
+    blockResults.endBlockEvents.map((event) => {
+      events.push(eventToEventWithInfo(event, timestamp, '', height))
+    })
+
+    return {
+      block,
+      txs,
+      events,
+    }
   }
+}
+
+type BlockIndexer = (
+  manager: EntityManager,
+  block: BlockResponse
+) => Promise<void>
+
+type TxIndexer = (
+  manager: EntityManager,
+  block: BlockResponse,
+  tx: TxData
+) => Promise<boolean>
+
+type EventIndexer = (
+  manager: EntityManager,
+  block: BlockResponse,
+  event: EventWithInfo
+) => Promise<boolean>
+
+interface IndexerConfig {
+  latestHeightUpdateInterval: number
+  latestHeightUpdateMaxRetry: number
 }

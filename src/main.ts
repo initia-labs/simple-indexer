@@ -1,17 +1,16 @@
-import { runBot } from 'indexer'
-import { initServer, finalizeServer } from 'loader'
+import { initServer } from 'api/main'
+import { runCollector } from 'indexer'
 import { once } from 'lodash'
-import { initORM, finalizeORM } from 'orm'
+import { initORM, finalizeORM, getDB } from 'orm'
 
 async function gracefulShutdown(): Promise<void> {
-  finalizeServer()
   await finalizeORM()
   process.exit(0)
 }
 
 export async function startBot(): Promise<void> {
   await initORM()
-  await runBot()
+  runCollector(getDB()[0].createEntityManager())
   await initServer()
 
   // attach graceful shutdown
