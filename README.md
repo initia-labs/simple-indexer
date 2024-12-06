@@ -35,7 +35,7 @@ Simple-indexer requires PostgreSQL as a backend database and [TypeORM](https://g
 
 # How to run
 
-### Developement
+### Development
 
 ```bash
 npm run dev
